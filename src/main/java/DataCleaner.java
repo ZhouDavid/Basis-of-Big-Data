@@ -57,34 +57,35 @@ public class DataCleaner {
             }
             return result;
         }
-        public void map(Object key,Text value,Context context)throws IOException,InterruptedException{
-            String line = new String(value.getBytes(),0,value.getLength(),"utf8");
-            if(line.length()>10){
-                String[] attrs = line.split(",",-1);
-                String md5_mac = attrs[2];
-                String rest =parseTime(attrs[0])+attrs[4]+","+attrs[5]+","+attrs[6]+","+attrs[7]+","+attrs[8];
-                Text txt = new Text(rest);
-                context.write(new Text(md5_mac),txt);
-            }
-        }
-    }
-
-    public static class RawRecordReducer extends Reducer<Text,Text,Text,Text>{
         public String busNameSearch(String mac){
             if(busInfoRecordMap.containsKey(mac)){
                 return busInfoRecordMap.get(mac).busName;
             }
             else return null;
         }
+        public void map(Object key,Text value,Context context)throws IOException,InterruptedException{
+            String line = new String(value.getBytes(),0,value.getLength(),"utf8");
+            if(line.length()>10){
+                String[] attrs = line.split(",",-1);
+                String md5_mac = attrs[2];
+                String busName = busNameSearch(md5_mac);
+                if(busName!=null){
+                    if(busName.length()>0) {
+                        String rest = md5_mac + "," + parseTime(attrs[0]) + attrs[4] + "," + attrs[5] + "," + attrs[6] + "," + attrs[7] + "," + attrs[8];
+                        Text txt = new Text(rest);
+                        context.write(new Text(busName), txt);
+                    }
+                }
+            }
+        }
+    }
+
+    public static class RawRecordReducer extends Reducer<Text,Text,Text,Text>{
+
         @Override
         public void reduce(Text key, Iterable<Text>values,Context context)throws IOException,InterruptedException{
-            String busName = busNameSearch(key.toString());
             for(Text value:values){
-                if(busName!=null){
-                    String output = busName+","+ value.toString();
-                    System.err.println("write");
-                    context.write(key,new Text(output));
-                }
+                context.write(key,value);
             }
         }
     }
